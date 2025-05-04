@@ -22,7 +22,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const fetchSuggestions = debounce(async (query) => {
         try {
-            const response = await fetch(`http://127.0.0.1:8000/api/search/?query=${encodeURIComponent(query)}`);
+            const response = await fetch(`https://formally-selected-iguana.ngrok-free.app/api/search/?query=${encodeURIComponent(query)}`, {
+                headers: {
+                    'ngrok-skip-browser-warning': 'true'
+                }
+            });
             const data = await response.json();
 
             autocompleteContainer.innerHTML = '';
@@ -68,9 +72,11 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             // Encode the search term for URL
             const encodedSearchTerm = encodeURIComponent(searchTerm);
-            const response = await fetch(
-                `http://127.0.0.1:8000/api/recommend/?title=${encodedSearchTerm}`
-            );
+            const response = await fetch(`https://formally-selected-iguana.ngrok-free.app/api/recommend/?title=${encodedSearchTerm}`, {
+                headers: {
+                    'ngrok-skip-browser-warning': 'true'
+                }
+            });
 
             if (!response.ok) {
                 throw new Error("API request failed");
