@@ -99,32 +99,117 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     function displayResults(movies, searchTerm) {
+
+        const container = document.getElementsByClassName('autocomplete-container')[0];
+        if (container) container.style.display = 'none';
+
         movieGrid.innerHTML = "";
 
-        movies.forEach((movie) => {
-            const movieCard = document.createElement("div");
-            movieCard.className = "movie-card";
+        const promises = movies.map(async (movie) => {
+            try {
+                const detailsRes = await fetch(`https://formally-selected-iguana.ngrok-free.app/api/movie/?title=${encodeURIComponent(movie.title)}`, {
+                    headers: {
+                        'ngrok-skip-browser-warning': 'true'
+                    }
+                });
 
-            const scorePercentage = Math.round(movie.similarity_score * 100);
+                if (!detailsRes.ok) throw new Error("Details API error");
 
-            movieCard.innerHTML = `
-                    <div class="movie-info">
-                        <h3 class="movie-title"><a href="/info.html?title=${encodeURIComponent(movie.title)}" style="color: inherit; text-decoration: none;">${movie.title}</a></h3>
-                        <div class="movie-score">
-                            <span>${scorePercentage}% match</span>
-                            <div class="score-bar">
-                                <div class="score-fill" style="width: ${scorePercentage}%"></div>
-                            </div>
+                const details = await detailsRes.json();
+                return { ...movie, details };
+            } catch (err) {
+                console.error(`Error fetching details for ${movie.title}`, err);
+                return { ...movie, details: null };
+            }
+        });
+
+        Promise.all(promises).then((moviesWithDetails) => {
+            moviesWithDetails.forEach(({ title, similarity_score, details }) => {
+                const scorePercentage = Math.round(similarity_score * 100);
+
+                const poster = details?.Poster && details.Poster !== "N/A" ? details.Poster : "assets/img/placeholder.png";
+                const year = details?.Year || "Unknown Year";
+                const rating = details?.imdbRating || "N/A";
+                const plot = details?.Plot || "No description available";
+
+                const movieCard = document.createElement("div");
+                movieCard.className = "movie-card";
+
+                movieCard.innerHTML = `
+                <div class="movie-image">
+                    <img src="${poster}" alt="${title}" style="width: 100px; height: 150px; object-fit: cover;" />
+                </div>
+                <div class="movie-info">
+                    <h3 class="movie-title">
+                        <a href="/info.html?title=${encodeURIComponent(title)}" style="color: inherit; text-decoration: none;">${title}</a>
+                    </h3>
+                    <p style="margin: 4px 0; font-size: 0.9rem;">${year} &nbsp;|&nbsp; ⭐ ${rating}</p>
+                    <p style="margin: 6px 0 12px; font-size: 0.85rem; color: var(--on-surface);">${plot}</p>
+                    <div class="movie-score">
+                        <span>${scorePercentage}% match</span>
+                        <div class="score-bar">
+                            <div class="score-fill" style="width: ${scorePercentage}%"></div>
                         </div>
                     </div>
-                `;
+                </div>
+            `;
 
-            movieGrid.appendChild(movieCard);
+                movieGrid.appendChild(movieCard);
+            });
         });
 
         // Update the results title
-        document.querySelector(
-            ".results-title"
-        ).innerText = `Recommended movies similar to "${searchTerm}":`;
+        document.querySelector(".results-title").innerText = `Recommended movies similar to "${searchTerm}":`;
     }
+
 });
+
+
+document.addEventListener("DOMContentLoaded", () => {
+    fetch("assets/js/movies.json")
+        .then((res) => res.json())
+        .then((data) => renderMovies(data))
+        .catch((err) => console.error("Error loading movies.json", err));
+});
+
+function renderMovies(moviesByGenre) {
+    const resultsContainer = document.getElementById("recommend-container");
+    const movieGrid = document.getElementById("movie-grid-mp");
+    movieGrid.innerHTML = ''; // Clear default
+
+    for (const [genre, movies] of Object.entries(moviesByGenre)) {
+        const section = document.createElement("div");
+        section.className = "movie-section-mp";
+
+        const title = document.createElement("h3");
+        title.className = "movie-row-title-mp";
+        title.textContent = genre;
+
+        const row = document.createElement("div");
+        row.className = "movie-row-mp";
+
+        movies.forEach((movie) => {
+            const card = document.createElement("a"); // Changed from <div> to <a>
+            card.className = "movie-card-mp";
+            card.href = `${window.location.origin}/info.html?title=${encodeURIComponent(movie.title)}`;
+            card.style.textDecoration = "none";
+            card.style.color = "inherit";
+
+            card.innerHTML = `
+        <img src="${movie.poster}" alt="${movie.title}" />
+        <h4 title="${movie.title}">${movie.title}</h4>
+        <p>${movie.year} &nbsp;|&nbsp; ⭐ ${movie.rating}</p>
+    `;
+
+            row.appendChild(card);
+        });
+
+
+
+        section.appendChild(title);
+        section.appendChild(row);
+        movieGrid.appendChild(section);
+    }
+
+    resultsContainer.style.display = "block";
+}
